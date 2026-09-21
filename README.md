@@ -899,6 +899,10 @@ events = sb.events(match_id=303299)
 
 
 
+By default, event-specific attributes are flattened into columns. For `50/50` events,
+the outcome name is available in `50_50_outcome`. Use `flatten_attrs=False` to retain
+the nested `50_50` object instead.
+
 It's also possible to get distinct dataframes for each event type and/or to have distinct event attributes on their own columns
 ```
 sb.events(match_id=303299, split=True, flatten_attrs=False)["dribbles"]

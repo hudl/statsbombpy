@@ -44,6 +44,7 @@ PLURALS = {
 def flatten_event(event, flatten_attrs):
     if flatten_attrs:
         ev_type = event["type"]["name"].lower().replace(" ", "_").replace("*", "")
+        ev_type = ev_type.replace("/", "_")
         ev_type = ev_type if event["type"]["name"] != "Goal Keeper" else "goalkeeper"
         if ev_type in event:
             for k, v in event[ev_type].items():

@@ -2,6 +2,14 @@ from collections import defaultdict
 
 import pandas as pd
 
+LOCATION_COLUMNS = [
+    "location",
+    "pass_end_location",
+    "carry_end_location",
+    "shot_end_location",
+    "goalkeeper_end_location",
+]
+
 PLURALS = {
     "Starting XI": "starting_xis",
     "Half Start": "half_starts",
@@ -117,3 +125,42 @@ def merge_events_and_frames(
             if key in drop_keys:
                 del event[key]
     return events
+
+
+def split_location_cols(df: pd.DataFrame, location_columns=None) -> pd.DataFrame:
+    """Split list-like coordinate columns into flat float columns.
+
+    StatsBomb locations come through as Python lists (e.g. [x, y] or
+    [x, y, z] for shots), which are awkward to work with downstream:
+    they are unhashable (drop_duplicates fails), they block vectorised
+    operations, and they do not round-trip cleanly through Parquet
+    (lists come back as numpy arrays). This helper adds ``<col>_x``,
+    ``<col>_y`` (and ``<col>_z`` where a third coordinate exists)
+    columns next to each list-like location column.
+
+    Missing or malformed values yield NaN. Original columns are kept.
+    """
+    if location_columns is None:
+        location_columns = LOCATION_COLUMNS
+
+    def _coord(value, i):
+        if isinstance(value, (list, tuple)) and len(value) > i:
+            return value[i]
+        # numpy arrays appear when a dataframe has been cached to Parquet
+        if hasattr(value, "__len__") and not isinstance(value, (str, dict)):
+            try:
+                return value[i] if len(value) > i else float("nan")
+            except (TypeError, IndexError):
+                return float("nan")
+        return float("nan")
+
+    for col in location_columns:
+        if col not in df.columns:
+            continue
+        values = df[col]
+        df[f"{col}_x"] = pd.to_numeric(values.map(lambda v: _coord(v, 0)), errors="coerce")
+        df[f"{col}_y"] = pd.to_numeric(values.map(lambda v: _coord(v, 1)), errors="coerce")
+        z = pd.to_numeric(values.map(lambda v: _coord(v, 2)), errors="coerce")
+        if z.notna().any():
+            df[f"{col}_z"] = z
+    return df

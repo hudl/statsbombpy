@@ -7,7 +7,8 @@ import pandas as pd
 from statsbombpy import api_client, public
 from statsbombpy.config import DEFAULT_CREDS, MAX_CONCURRENCY
 from statsbombpy.helpers import (filter_and_group_events,
-                                 merge_events_and_frames, reduce_events)
+                                 merge_events_and_frames, reduce_events,
+                                 split_location_cols)
 
 
 def competitions(fmt="dataframe", creds: dict = DEFAULT_CREDS, version: str = None):
@@ -152,6 +153,7 @@ def events(
     creds: dict = DEFAULT_CREDS,
     include_360_metrics=False,
     version: str = None,
+    split_locations: bool = False,
 ) -> Union[pd.DataFrame, dict]:
 
     if not api_client.has_auth(creds) and include_360_metrics:
@@ -169,6 +171,8 @@ def events(
         events = filter_and_group_events(events, filters, fmt, flatten_attrs)
         for ev_type, evs in events.items():
             events[ev_type] = pd.DataFrame(evs)
+            if split_locations:
+                events[ev_type] = split_location_cols(events[ev_type])
         if split is False:
             events = pd.concat([*events.values()], axis=0, ignore_index=True, sort=True)
     return events

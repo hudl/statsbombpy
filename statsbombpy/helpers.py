@@ -86,8 +86,14 @@ def filter_and_group_events(events, filters, fmt, flatten_attrs):
     return events_
 
 
+def _attr_value(event, key):
+    # attributes like type/player/team are {"id", "name"} dicts; others are scalars
+    value = event.get(key)
+    return value.get("name") if isinstance(value, dict) else value
+
+
 def is_relevant(event, filters):
-    return all(event.get("type", {}).get("name") == v for k, v in filters.items())
+    return all(_attr_value(event, k) == v for k, v in filters.items())
 
 
 def reduce_events(all_events: dict, fmt: str) -> dict:

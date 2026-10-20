@@ -30,6 +30,9 @@ def has_auth(creds):
 def get_resource(url: str, creds: dict) -> list:
     auth = req.auth.HTTPBasicAuth(creds["user"], creds["passwd"])
     resp = session.get(url, auth=auth, headers=HEADERS)
+    if resp.status_code >= 500:
+        # transient server error: don't mistake it for an empty result
+        resp.raise_for_status()
     if resp.status_code != 200:
         print(f"{url} -> {resp.status_code}")
         resp = []
@@ -39,7 +42,10 @@ def get_resource(url: str, creds: dict) -> list:
 
 
 def _fetch_endpoint_versions(creds: dict):
-    raw = get_resource(f"{HOSTNAME}/api/endpoint-versions", creds)
+    try:
+        raw = get_resource(f"{HOSTNAME}/api/endpoint-versions", creds)
+    except req.HTTPError:
+        return None
     if not raw:
         return None
     return {

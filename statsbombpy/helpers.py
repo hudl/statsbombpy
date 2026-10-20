@@ -170,3 +170,70 @@ def split_location_cols(df: pd.DataFrame, location_columns=None) -> pd.DataFrame
         if z.notna().any():
             df[f"{col}_z"] = z
     return df
+
+
+def get_possession_sequence(
+    events: pd.DataFrame, event_id: str, exclude_trigger: bool = True
+) -> pd.DataFrame:
+    """
+    Return all events in the same possession sequence as the given event.
+
+    Parameters
+    ----------
+    events : pd.DataFrame
+        Events for a single match, as returned by ``sb.events()``.
+    event_id : str
+        The ``id`` of any event in the target possession sequence.
+        Typically the goal or significant event that ended the sequence.
+    exclude_trigger : bool
+        When True (default), the event identified by ``event_id`` is
+        excluded from the result. Useful for build-up analysis where the
+        trigger (e.g. a goal) is the endpoint rather than part of the
+        sequence itself.
+
+    Returns
+    -------
+    pd.DataFrame
+        Events sorted by (period, timestamp, index). Empty DataFrame if
+        ``event_id`` is not found in ``events``.
+    """
+    trigger = events[events["id"] == event_id]
+    if trigger.empty:
+        return pd.DataFrame()
+    possession_id = trigger.iloc[0]["possession"]
+    sequence = events[events["possession"] == possession_id]
+    if exclude_trigger:
+        sequence = sequence[sequence["id"] != event_id]
+    return sequence.sort_values(["period", "timestamp", "index"]).reset_index(drop=True)
+
+
+def get_prior_possession(events: pd.DataFrame, event_id: str) -> pd.DataFrame:
+    """
+    Return all events in the possession sequence immediately before the
+    given event's possession.
+
+    Useful for set piece context: when a goal is scored from a penalty,
+    free kick, or corner, the foul or challenge that earned the set piece
+    belongs to the prior possession (``possession - 1``).
+
+    Parameters
+    ----------
+    events : pd.DataFrame
+        Events for a single match, as returned by ``sb.events()``.
+    event_id : str
+        The ``id`` of any event in the target possession sequence.
+
+    Returns
+    -------
+    pd.DataFrame
+        Events sorted by (period, timestamp, index). Empty DataFrame if
+        ``event_id`` is not found or there is no prior possession.
+    """
+    trigger = events[events["id"] == event_id]
+    if trigger.empty:
+        return pd.DataFrame()
+    possession_id = trigger.iloc[0]["possession"]
+    if possession_id <= 1:
+        return pd.DataFrame()
+    prior = events[events["possession"] == possession_id - 1]
+    return prior.sort_values(["period", "timestamp", "index"]).reset_index(drop=True)

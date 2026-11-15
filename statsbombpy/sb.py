@@ -174,6 +174,8 @@ def events(
             if split_locations:
                 events[ev_type] = split_location_cols(events[ev_type])
         if split is False:
+            if not events:
+                return pd.DataFrame()
             events = pd.concat([*events.values()], axis=0, ignore_index=True, sort=True)
     return events
 
@@ -214,6 +216,8 @@ def competition_events(
 
     competition_events = reduce_events(matches_events, fmt)
     if fmt == "dataframe" and split is False:
+        if not competition_events:
+            return pd.DataFrame()
         competition_events = pd.concat(
             [*competition_events.values()], axis=0, ignore_index=True, sort=True
         )
